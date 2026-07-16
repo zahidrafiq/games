@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Vine & Harvest: Battle</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Space+Mono:wght@400;700&display=swap');
+
+  :root{
+    --soil: #0f1b14;
+    --moss: #1c2e22;
+    --moss-light: #2a4433;
+    --cream: #f2ead9;
+    --amber: #e8a13d;
+    --ruby: #d1495b;
+    --plum: #9b7fc7;
+    --vine-dark: #3f6b47;
+    --vine-light: #7fb069;
+  }
+
+  *{box-sizing:border-box;}
+
+  body{
+    margin:0;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    background:
+      radial-gradient(ellipse at 50% -10%, #16261b 0%, var(--soil) 60%);
+    font-family:'Space Mono', monospace;
+    color:var(--cream);
+    padding:24px;
+    gap:16px;
+  }
+
+  .title{
+    font-family:'Fraunces', serif;
+    font-weight:700;
+    font-size:clamp(28px,5vw,42px);
+    letter-spacing:0.5px;
+    color:var(--cream);
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+  }
+  .title .amp{
+    color:var(--amber);
+    font-style:italic;
+    font-weight:500;
+  }
+
+  .frame{
+    position:relative;
+    padding:14px;
+    border-radius:18px;
+    background:linear-gradient(180deg, var(--moss-light), var(--moss));
+    box-shadow:
+      0 0 0 1px rgba(127,176,105,0.15),
+      0 20px 50px -20px rgba(0,0,0,0.7),
+      inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+
+  canvas{
+    display:block;
+    border-radius:10px;
+    background:#0c1712;
+    image-rendering:pixelated;
+  }
+
+  .hud{
+    width:100%;
+    max-width:520px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:13px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    color:#a9c2ac;
+  }
+
+  .hud .stat{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    align-items:center;
+  }
+  .hud .stat b{
+    font-family:'Fraunces', serif;
+    font-size:26px;
+    font-weight:700;
+    color:var(--cream);
+    letter-spacing:0;
+  }
+  .hud .stat.harvest b{ color:var(--amber); }
+  .hud .stat.best b{ color:var(--plum); }
+  .hud .stat.rivals b{ color:var(--ruby); }
+
+  .hint{
+    font-size:12px;
+    color:#7c9482;
+    text-align:center;
+    max-width:480px;
+    line-height:1.6;
+  }
+  .hint kbd{
+    background:var(--moss-light);
+    padding:1px 6px;
+    border-radius:4px;
+    border:1px solid rgba(127,176,105,0.3);
+    color:var(--cream);
+    font-family:'Space Mono', monospace;
+  }
+
+  .overlay{
+    position:absolute;
+    inset:14px;
+    border-radius:10px;
+    background:rgba(10,18,14,0.9);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    text-align:center;
+    padding:20px;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity 0.25s ease;
+    overflow-y:auto;
+  }
+  .overlay.show{ opacity:1; pointer-events:auto; }
+  .overlay h2{
+    font-family:'Fraunces', serif;
+    font-size:28px;
+    margin:0;
+    color:var(--ruby);
+  }
+  .overlay h2.start{ color:var(--vine-light); }
+  .overlay p{ margin:0; color:#c7d8cb; font-size:13px; max-width:320px; line-height:1.5; }
+  .overlay button{
+    font-family:'Space Mono', monospace;
+    font-weight:700;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    font-size:13px;
+    padding:10px 22px;
+    border-radius:8px;
+    border:none;
+    background:var(--amber);
+    color:#241505;
+    cursor:pointer;
+    transition:transform 0.15s ease, background 0.15s ease;
+    margin-top:6px;
+  }
+  .overlay button:hover{ background:#f2b25a; transform:translateY(-1px); }
+  .overlay button:active{ transform:translateY(0); }
+
+  .label-row{
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:1.5px;
+    color:#7c9482;
+    margin-top:4px;
+  }
+
+  .swatches{
+    display:flex;
+    gap:10px;
+  }
+  .swatch{
+    width:30px;
+    height:30px;
+    border-radius:50%;
+    border:2px solid rgba(255,255,255,0.15);
+    cursor:pointer;
+    padding:0;
+    transition:transform 0.15s ease, border-color 0.15s ease;
+  }
+  .swatch:hover{ transform:translateY(-2px); }
+  .swatch.selected{
+    border-color:var(--cream);
+    box-shadow:0 0 0 2px rgba(0,0,0,0.3), 0 0 10px 2px var(--sw-glow, transparent);
+  }
+
+  .opponents{
+    display:flex;
+    gap:8px;
+  }
+  .opp-btn{
+    font-family:'Space Mono', monospace;
+    font-size:12px;
+    padding:6px 14px;
+    border-radius:20px;
+    border:1px solid rgba(255,255,255,0.18);
+    background:transparent;
+    color:var(--cream);
+    cursor:pointer;
+    transition:background .15s ease, border-color .15s ease;
+  }
+  .opp-btn:hover{ border-color:var(--vine-light); }
+  .opp-btn.selected{
+    background:var(--vine-dark);
+    border-color:var(--vine-light);
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .overlay{ transition:none; }
+    .frame.shake{ animation:none; }
+  }
+
+  @keyframes frameShake{
+    0%{ transform:translate(0,0); }
+    20%{ transform:translate(-4px,3px); }
+    40%{ transform:translate(4px,-3px); }
+    60%{ transform:translate(-3px,-2px); }
+    80%{ transform:translate(3px,2px); }
+    100%{ transform:translate(0,0); }
+  }
+  .frame.shake{ animation:frameShake 0.35s ease; }
+</style>
+</head>
+<body>
+
+  <div class="title">Vine <span class="amp">&amp;</span> Harvest</div>
+
+  <div class="hud">
+    <div class="stat harvest"><b id="score">0</b>fruit</div>
+    <div class="stat best"><b id="best">0</b>best</div>
+    <div class="stat"><b id="speed">1</b>pace</div>
+    <div class="stat rivals"><b id="alive">2</b>rivals</div>
+  </div>
+
+  <div class="frame">
+    <canvas id="board" width="480" height="480"></canvas>
+    <div class="overlay show" id="overlay">
+      <h2 class="start">Coil up &amp; grow</h2>
+      <p>Guide your vine through the plot and outlast the wild ones. When any snake dies, its body turns to fruit — eat the fallen before your rivals do.</p>
+      <div class="label-row">Your color</div>
+      <div class="swatches" id="swatches"></div>
+      <div class="label-row">Rivals</div>
+      <div class="opponents" id="opponents"></div>
+      <button id="playBtn">Enter the plot</button>
+    </div>
+  </div>
+
+  <div class="hint">
+    Move with <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> or <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>. Press <kbd>Space</kbd> to pause. On mobile, swipe on the board. A thin ring marks your vine.
+  </div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('board');
+  const ctx = canvas.getContext('2d');
+  const cell = 20;
+  const cols = canvas.width / cell;
+  const rows = canvas.height / cell;
+
+  const scoreEl = document.getElementById('score');
+  const bestEl = document.getElementById('best');
+  const speedEl = document.getElementById('speed');
+  const aliveEl = document.getElementById('alive');
+  const overlay = document.getElementById('overlay');
+  const playBtn = document.getElementById('playBtn');
+
+  let best = 0;
+  bestEl.textContent = best;
+
+  const fruitTypes = [
+    { color:'#e8a13d', glow:'rgba(232,161,61,0.55)', points:1 },
+    { color:'#d1495b', glow:'rgba(209,73,91,0.55)', points:1 },
+    { color:'#9b7fc7', glow:'rgba(155,127,199,0.55)', points:2 },
+  ];
+
+  const vineColors = [
+    { name:'Meadow', head:'#a8d98f', mid:[60,176,100] },
+    { name:'Ember',  head:'#f2b25a', mid:[196,110,50] },
+    { name:'Orchid', head:'#d9bdf0', mid:[150,110,190] },
+    { name:'Frost',  head:'#b7e6f2', mid:[70,150,175] },
+  ];
+  let selectedColor = 0;
+  let numOpponents = 2;
+  const minFruits = 5;
+
+  function hexToRgba(hex, a){
+    const h = hex.replace('#','');
+    const r = parseInt(h.substring(0,2),16);
+    const g = parseInt(h.substring(2,4),16);
+    const b = parseInt(h.substring(4,6),16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  function buildSwatches(containerId){
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    el.innerHTML = '';
+    vineColors.forEach((c, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'swatch' + (i === selectedColor ? ' selected' : '');
+      btn.style.background = c.head;
+      btn.style.setProperty('--sw-glow', c.head);
+      btn.title = c.name;
+      btn.addEventListener('click', () => {
+        selectedColor = i;
+        el.querySelectorAll('.swatch').forEach(s => s.classList.remove('selected'));
+        btn.classList.add('selected');
+        draw();
+      });
+      el.appendChild(btn);
+    });
+  }
+
+  function buildOpponents(containerId){
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    el.innerHTML = '';
+    [1,2,3].forEach(n => {
+      const btn = document.createElement('button');
+      btn.className = 'opp-btn' + (n === numOpponents ? ' selected' : '');
+      btn.textContent = n === 1 ? '1 rival' : n + ' rivals';
+      btn.addEventListener('click', () => {
+        numOpponents = n;
+        el.querySelectorAll('.opp-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+      });
+      el.appendChild(btn);
+    });
+  }
+
+  let snakes = [];
+  let fruits = [];
+  let effects = [];
+  let rafActive = false;
+  let score, running, gameOver, paused, tickMs, timer, pace, best2;
+
+  function spawnEffect(x, y, color){
+    effects.push({ x, y, color, start: performance.now() });
+    if (!rafActive){
+      rafActive = true;
+      requestAnimationFrame(renderLoop);
+    }
+  }
+
+  function renderLoop(){
+    draw();
+    effects = effects.filter(e => performance.now() - e.start < 500);
+    if (effects.length){
+      requestAnimationFrame(renderLoop);
+    } else {
+      rafActive = false;
+    }
+  }
+
+  function getSpawnPoints(){
+    const mid = Math.floor(cols/2), midR = Math.floor(rows/2);
+    return [
+      { x:5, y:midR, dir:{x:1,y:0} },
+      { x:cols-6, y:midR, dir:{x:-1,y:0} },
+      { x:mid, y:5, dir:{x:0,y:1} },
+      { x:mid, y:rows-6, dir:{x:0,y:-1} },
+    ];
+  }
+
+  function makeSnake(spawn, colorIdx, isPlayer){
+    const { x, y, dir } = spawn;
+    return {
+      colorIdx,
+      isPlayer,
+      alive:true,
+      respawnAt:null,
+      dir:{...dir},
+      nextDir:{...dir},
+      segments:[
+        {x,y},
+        {x:x-dir.x, y:y-dir.y},
+        {x:x-2*dir.x, y:y-2*dir.y},
+      ],
+    };
+  }
+
+  function reset(){
+    const spawns = getSpawnPoints();
+    const otherColors = vineColors.map((_,i)=>i).filter(i => i !== selectedColor);
+    snakes = [makeSnake(spawns[0], selectedColor, true)];
+    for(let i=0;i<numOpponents;i++){
+      snakes.push(makeSnake(spawns[i+1], otherColors[i % otherColors.length], false));
+    }
+    fruits = [];
+    score = 0;
+    pace = 1;
+    tickMs = 140;
+    gameOver = false;
+    paused = false;
+    topUpFruits();
+    scoreEl.textContent = score;
+    speedEl.textContent = pace;
+    aliveEl.textContent = numOpponents;
+  }
+
+  function randomFreeCell(){
+    for(let i=0;i<500;i++){
+      const x = Math.floor(Math.random()*cols);
+      const y = Math.floor(Math.random()*rows);
+      if (fruits.some(f => f.x===x && f.y===y)) continue;
+      if (snakes.some(s => s.alive && s.segments.some(seg => seg.x===x && seg.y===y))) continue;
+      return {x,y};
+    }
+    return null;
+  }
+
+  function topUpFruits(){
+    let guard = 0;
+    while (fruits.filter(f => !f.remains).length < minFruits && guard < 50){
+      const pos = randomFreeCell();
+      if (!pos) break;
+      const type = fruitTypes[Math.floor(Math.random()*fruitTypes.length)];
+      fruits.push({x:pos.x, y:pos.y, ...type, remains:false});
+      guard++;
+    }
+  }
+
+  function convertToFruit(s){
+    const cSet = vineColors[s.colorIdx];
+    s.segments.forEach(seg => {
+      if (!fruits.some(f => f.x===seg.x && f.y===seg.y)){
+        fruits.push({x:seg.x, y:seg.y, color:cSet.head, glow:hexToRgba(cSet.head,0.5), points:1, remains:true});
+      }
+    });
+  }
+
+  function respawnSnake(s){
+    const pos = randomFreeCell();
+    if (!pos){ s.respawnAt = Date.now() + 1000; return; }
+    const dirs = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
+    const d = dirs[Math.floor(Math.random()*4)];
+    s.segments = [{x:pos.x, y:pos.y}];
+    s.dir = d;
+    s.nextDir = d;
+    s.alive = true;
+    s.respawnAt = null;
+  }
+
+  function collides(snake, head, willGrow){
+    for (const s of snakes){
+      if (!s.alive) continue;
+      const segs = s.segments;
+      for (let i=0;i<segs.length;i++){
+        if (s === snake && i === segs.length-1 && !willGrow) continue;
+        if (segs[i].x === head.x && segs[i].y === head.y) return true;
+      }
+    }
+    return false;
+  }
+
+  function decideAI(s){
+    const head = s.segments[0];
+    const dirs = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
+    const cur = s.dir;
+    const candidates = s.segments.length===1 ? dirs : dirs.filter(d => !(d.x===-cur.x && d.y===-cur.y));
+    const safe = candidates.filter(d => {
+      const nh = {x:head.x+d.x, y:head.y+d.y};
+      if (nh.x<0 || nh.x>=cols || nh.y<0 || nh.y>=rows) return false;
+      const willGrow = fruits.some(f => f.x===nh.x && f.y===nh.y);
+      return !collides(s, nh, willGrow);
+    });
+    if (safe.length===0){ s.nextDir = cur; return; }
+    let target = null, bestDist = Infinity;
+    fruits.forEach(f => {
+      const d = Math.abs(f.x-head.x) + Math.abs(f.y-head.y);
+      if (d < bestDist){ bestDist = d; target = f; }
+    });
+    if (target){
+      safe.sort((a,b) => {
+        const da = Math.abs((head.x+a.x)-target.x) + Math.abs((head.y+a.y)-target.y);
+        const db = Math.abs((head.x+b.x)-target.x) + Math.abs((head.y+b.y)-target.y);
+        return da - db;
+      });
+      s.nextDir = Math.random() < 0.15 ? safe[Math.floor(Math.random()*safe.length)] : safe[0];
+    } else {
+      s.nextDir = safe[Math.floor(Math.random()*safe.length)];
+    }
+  }
+
+  function shuffle(arr){
+    const a = [...arr];
+    for (let i=a.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [a[i],a[j]] = [a[j],a[i]];
+    }
+    return a;
+  }
+
+  function roundRect(ctx,x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    ctx.strokeStyle = 'rgba(127,176,105,0.05)';
+    ctx.lineWidth = 1;
+    for(let x=0;x<=cols;x++){
+      ctx.beginPath(); ctx.moveTo(x*cell+0.5,0); ctx.lineTo(x*cell+0.5,canvas.height); ctx.stroke();
+    }
+    for(let y=0;y<=rows;y++){
+      ctx.beginPath(); ctx.moveTo(0,y*cell+0.5); ctx.lineTo(canvas.width,y*cell+0.5); ctx.stroke();
+    }
+
+    fruits.forEach(f => {
+      const cx = f.x*cell + cell/2;
+      const cy = f.y*cell + cell/2;
+      const grad = ctx.createRadialGradient(cx,cy,1,cx,cy,cell*1.3);
+      grad.addColorStop(0, f.glow);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(f.x*cell-cell*0.7, f.y*cell-cell*0.7, cell*2.4, cell*2.4);
+
+      ctx.fillStyle = f.color;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cell*0.34, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.beginPath();
+      ctx.arc(cx - cell*0.1, cy - cell*0.1, cell*0.1, 0, Math.PI*2);
+      ctx.fill();
+    });
+
+    snakes.forEach(s => {
+      if (!s.alive) return;
+      const cSet = vineColors[s.colorIdx];
+      for(let i=s.segments.length-1; i>=0; i--){
+        const seg = s.segments[i];
+        const t = i / Math.max(s.segments.length-1,1);
+        const px = seg.x*cell, py = seg.y*cell;
+        const size = cell - 3;
+        const r = 6;
+
+        if (i===0){
+          ctx.fillStyle = cSet.head;
+        } else {
+          const [r0,g0,b0] = cSet.mid;
+          const rr = Math.round(r0 * (1 - t*0.5));
+          const gg = Math.round(g0 * (1 - t*0.5));
+          const bb = Math.round(b0 * (1 - t*0.5));
+          ctx.fillStyle = `rgb(${rr},${gg},${bb})`;
+        }
+
+        roundRect(ctx, px+1.5, py+1.5, size, size, r);
+        ctx.fill();
+
+        if (i===0){
+          ctx.fillStyle = '#1a2a1e';
+          const ex = s.dir.x, ey = s.dir.y;
+          const baseX = px + cell/2, baseY = py + cell/2;
+          const off = cell*0.18;
+          const perpX = -ey, perpY = ex;
+          ctx.beginPath();
+          ctx.arc(baseX + ex*off + perpX*off, baseY + ey*off + perpY*off, 1.6, 0, Math.PI*2);
+          ctx.arc(baseX + ex*off - perpX*off, baseY + ey*off - perpY*off, 1.6, 0, Math.PI*2);
+          ctx.fill();
+        }
+      }
+      if (s.isPlayer){
+        const head = s.segments[0];
+        ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(head.x*cell + cell/2, head.y*cell + cell/2, cell*0.55, 0, Math.PI*2);
+        ctx.stroke();
+      }
+    });
+
+    effects.forEach(e => {
+      const elapsed = performance.now() - e.start;
+      const p = Math.min(elapsed / 500, 1);
+      const radius = cell*0.4 + p*cell*1.9;
+      ctx.beginPath();
+      ctx.arc(e.x*cell + cell/2, e.y*cell + cell/2, radius, 0, Math.PI*2);
+      ctx.strokeStyle = hexToRgba(e.color, 1 - p);
+      ctx.lineWidth = 3*(1-p) + 1;
+      ctx.stroke();
+    });
+  }
+
+  function tick(){
+    if (paused || gameOver) return;
+
+    snakes.forEach(s => { if (s.alive && !s.isPlayer) decideAI(s); });
+
+    const order = shuffle(snakes.filter(s => s.alive));
+    const justDied = [];
+
+    order.forEach(s => {
+      s.dir = s.nextDir;
+      const head = { x: s.segments[0].x + s.dir.x, y: s.segments[0].y + s.dir.y };
+
+      if (head.x < 0 || head.x >= cols || head.y < 0 || head.y >= rows){
+        justDied.push(s); return;
+      }
+      const eaten = fruits.find(f => f.x===head.x && f.y===head.y);
+      const willGrow = !!eaten;
+      if (collides(s, head, willGrow)){
+        justDied.push(s); return;
+      }
+
+      s.segments.unshift(head);
+      if (eaten){
+        fruits.splice(fruits.indexOf(eaten), 1);
+        if (s.isPlayer){
+          score += eaten.points;
+          scoreEl.textContent = score;
+          if (score > best){ best = score; bestEl.textContent = best; }
+          if (score % 5 === 0){
+            pace++;
+            tickMs = Math.max(60, tickMs - 12);
+            speedEl.textContent = pace;
+          }
+        }
+      } else {
+        s.segments.pop();
+      }
+    });
+
+    justDied.forEach(s => {
+      s.alive = false;
+      const deathHead = s.segments[0];
+      spawnEffect(deathHead.x, deathHead.y, vineColors[s.colorIdx].head);
+      convertToFruit(s);
+      if (s.isPlayer){
+        const frameEl = document.querySelector('.frame');
+        frameEl.classList.remove('shake');
+        void frameEl.offsetWidth;
+        frameEl.classList.add('shake');
+        triggerGameOver();
+      } else {
+        s.respawnAt = Date.now() + 3000;
+      }
+    });
+
+    snakes.forEach(s => {
+      if (!s.isPlayer && !s.alive && s.respawnAt && Date.now() >= s.respawnAt){
+        respawnSnake(s);
+      }
+    });
+
+    topUpFruits();
+    aliveEl.textContent = snakes.filter(s => !s.isPlayer && s.alive).length;
+
+    draw();
+  }
+
+  function triggerGameOver(){
+    gameOver = true;
+    clearInterval(timer);
+    const rivalsLeft = snakes.filter(s => !s.isPlayer && s.alive).length;
+    const rivalLine = rivalsLeft > 0
+      ? `${rivalsLeft} rival${rivalsLeft===1?'':'s'} still slithering.`
+      : 'The plot is yours.';
+    overlay.innerHTML = `
+      <h2>Your vine was struck down</h2>
+      <p>You harvested <b style="color:var(--amber)">${score}</b> fruit${score===1?'':'s'}. ${rivalLine} ${score>=best && score>0 ? 'A new best!' : ''}</p>
+      <div class="label-row">Your color</div>
+      <div class="swatches" id="swatches"></div>
+      <div class="label-row">Rivals</div>
+      <div class="opponents" id="opponents"></div>
+      <button id="playBtn">Plant again</button>
+    `;
+    overlay.classList.add('show');
+    buildSwatches('swatches');
+    buildOpponents('opponents');
+    document.getElementById('playBtn').addEventListener('click', startGame);
+  }
+
+  function startGame(){
+    overlay.classList.remove('show');
+    reset();
+    draw();
+    clearInterval(timer);
+    timer = setInterval(tick, tickMs);
+    running = true;
+  }
+
+  function restartTimerIfPaceChanged(){
+    clearInterval(timer);
+    timer = setInterval(tick, tickMs);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    const key = e.key.toLowerCase();
+    const map = {
+      arrowup:{x:0,y:-1}, w:{x:0,y:-1},
+      arrowdown:{x:0,y:1}, s:{x:0,y:1},
+      arrowleft:{x:-1,y:0}, a:{x:-1,y:0},
+      arrowright:{x:1,y:0}, d:{x:1,y:0},
+    };
+    const player = snakes.find(s => s.isPlayer);
+    if (map[key]){
+      e.preventDefault();
+      if (!player) return;
+      const nd = map[key];
+      if (!(nd.x === -player.dir.x && nd.y === -player.dir.y)){
+        player.nextDir = nd;
+      }
+    } else if (key === ' '){
+      e.preventDefault();
+      if (running && !gameOver){
+        paused = !paused;
+      }
+    }
+  });
+
+  let touchStart = null;
+  canvas.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    touchStart = {x:t.clientX, y:t.clientY};
+  }, {passive:true});
+  canvas.addEventListener('touchend', (e) => {
+    if (!touchStart) return;
+    const player = snakes.find(s => s.isPlayer);
+    if (!player){ touchStart = null; return; }
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStart.x;
+    const dy = t.clientY - touchStart.y;
+    if (Math.abs(dx) > Math.abs(dy)){
+      if (Math.abs(dx) > 20){
+        const nd = dx > 0 ? {x:1,y:0} : {x:-1,y:0};
+        if (!(nd.x === -player.dir.x && nd.y === -player.dir.y)) player.nextDir = nd;
+      }
+    } else {
+      if (Math.abs(dy) > 20){
+        const nd = dy > 0 ? {x:0,y:1} : {x:0,y:-1};
+        if (!(nd.x === -player.dir.x && nd.y === -player.dir.y)) player.nextDir = nd;
+      }
+    }
+    touchStart = null;
+  }, {passive:true});
+
+  let lastTick = null;
+  setInterval(() => {
+    if (running && !gameOver && tickMs !== lastTick){
+      lastTick = tickMs;
+      restartTimerIfPaceChanged();
+    }
+  }, 50);
+
+  playBtn.addEventListener('click', startGame);
+  buildSwatches('swatches');
+  buildOpponents('opponents');
+  reset();
+  draw();
+})();
+</script>
+</body>
+</html>
